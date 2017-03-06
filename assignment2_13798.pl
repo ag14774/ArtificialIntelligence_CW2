@@ -10,7 +10,8 @@ solve_task(Task,Cost) :-
 solve_task_1_3(Task,Cost) :-
   agent_current_position(oscar,P),
   eval(Task,P,C),
-  solve_task_bf(Task,[[c(C,0,P),P]],R,Cost,_NewPos),!,  % prune choice point for efficiency
+  % c(total, heuristic, depth, pos)
+  solve_task_bf(Task,[[c(C,C,0,P),P]],R,Cost,_NewPos),!,  % prune choice point for efficiency
   reverse(R,[_Init|Path]),
   agent_do_moves(oscar,Path).
 %%%%%%%%%% Part 1 & 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -44,9 +45,9 @@ solve_task_bf(Task,[Current|Rest],RR,Cost,NewPos) :-
   merge(Children,Rest,NewAgenda),
   solve_task_bf(Task,NewAgenda,RR,Cost,NewPos).  % backtrack search
 
-children(Task,[c(OldCost,Depth,P)|RPath],Children) :-
+children(Task,[c(OldCost,_,Depth,P)|RPath],Children) :-
   DepthNew is Depth + 1,
-  setof0( [c(Cost,DepthNew,Next),Next|RPath],
+  setof0( [c(Cost,H,DepthNew,Next),Next|RPath],
           (search(P,Next),
            \+ memberchk(Next,RPath),
            eval(Task,Next,H),
@@ -65,12 +66,12 @@ search(F,N) :-
   map_adjacent(F,N,empty).
 
 achieved(go(Exit),Current,RPath,Cost,Depth,NewPos) :-
-  Current = [c(Cost,Depth,NewPos)|RPath],
+  Current = [c(Cost,_,Depth,NewPos)|RPath],
   ( Exit=none -> true
   ; otherwise -> RPath = [Exit|_]
   ).
 achieved(find(O),Current,RPath,Cost,Depth,NewPos) :-
-  Current = [c(Cost,Depth,NewPos)|RPath],
+  Current = [c(Cost,_,Depth,NewPos)|RPath],
   ( O=none    -> true
   ; otherwise -> RPath = [Last|_],map_adjacent(Last,_,O)
   ).
