@@ -10,8 +10,9 @@ solve_task(Task,Cost) :-
 solve_task_1_3(Task,Cost) :-
   agent_current_position(oscar,P),
   eval(Task,P,C),
+  insert_to_dict(visited{},P,C,VisitedInit),
   % c(total, heuristic, depth, pos)
-  solve_task_bf(Task,[[c(C,C,0,P),P]],R,Cost,_NewPos),!,  % prune choice point for efficiency
+  solve_task_bf(Task,[[c(C,C,0,P),P]],VisitedInit,R,Cost,_NewPos),!,  % prune choice point for efficiency
   reverse(R,[_Init|Path]),
   agent_do_moves(oscar,Path).
 %%%%%%%%%% Part 1 & 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -38,14 +39,15 @@ solve_task_bt(Task,Current,D,RR,Cost,NewPos) :-
   solve_task_bt(Task,[c(F1,P1),R|RPath],D1,RR,Cost,NewPos).  % backtrack search
 
 %%%%%%%%% Part 1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-solve_task_bf(Task,[Current|Rest],RPath,[cost(Cost),depth(Depth)],NewPos) :-
+solve_task_bf(Task,[Current|_Rest],_Visited,RPath,[cost(Cost),depth(Depth)],NewPos) :-
   achieved(Task,Current,RPath,Cost,Depth,NewPos).
-solve_task_bf(Task,[Current|Rest],RR,Cost,NewPos) :-
+solve_task_bf(Task,[Current|Rest],Visited,RR,Cost,NewPos) :-
   children(Task,Current,Children),
-  merge(Children,Rest,NewAgenda),
-  solve_task_bf(Task,NewAgenda,RR,Cost,NewPos).  % backtrack search
+  filter_children(Children,Visited,NewVisited,NewChildren),
+  merge(NewChildren,Rest,NewAgenda),
+  solve_task_bf(Task,NewAgenda,NewVisited,RR,Cost,NewPos).  % backtrack search
 
-children(Task,[c(OldCost,_,Depth,P)|RPath],Children) :-
+children(Task,[c(_OldCost,_,Depth,P)|RPath],Children) :-
   DepthNew is Depth + 1,
   setof0( [c(Cost,H,DepthNew,Next),Next|RPath],
           (search(P,Next),
@@ -55,7 +57,7 @@ children(Task,[c(OldCost,_,Depth,P)|RPath],Children) :-
           Children ).
 
 %% Heuristic %%
-eval(find(O),Pos,Cost) :-
+eval(find(_O),_Pos,Cost) :-
   Cost = 0.
 
 eval(go(P),Pos,Cost) :-
@@ -64,6 +66,32 @@ eval(go(P),Pos,Cost) :-
 
 search(F,N) :-
   map_adjacent(F,N,empty).
+
+insert_to_dict(Dict,Point,Value,NewDict) :-
+  term_to_atom(Point,Key),
+  put_dict(Key,Dict,Value,NewDict).
+
+get_from_dict(Dict,Point,1,Value) :-
+  term_to_atom(Point,Key),
+  get_dict(Key,Dict,Value),!.
+get_from_dict(_Dict,_Point,0,_Value).
+
+filter_children(Children,Dict,NewDict,NewChildren) :-
+  filter_children(Children,[],Dict,NewDict,Children2),
+  reverse(Children2,NewChildren).
+filter_children([],Children,Dict,Dict,Children).
+filter_children([Child|Rest],Children,Dict,NewDict,NewChildren) :-
+  Child = [c(Cost,_,_,Pos)|_],
+  get_from_dict(Dict,Pos,Found,Value),
+  ( Found = 1, Cost <  Value -> insert_to_dict(Dict,Pos,Cost,Dict2),
+                                Child2 = [Child|Children]
+  ; Found = 1, Cost >= Value -> Dict2 = Dict,
+                                Child2 = Children
+  ; otherwise -> insert_to_dict(Dict,Pos,Cost,Dict2),
+                 Child2 = [Child|Children]
+  ),
+  filter_children(Rest,Child2,Dict2,NewDict,NewChildren).
+
 
 achieved(go(Exit),Current,RPath,Cost,Depth,NewPos) :-
   Current = [c(Cost,_,Depth,NewPos)|RPath],
