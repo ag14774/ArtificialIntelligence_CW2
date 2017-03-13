@@ -1,21 +1,29 @@
 candidate_number(13798).
 
 solve_task(Task,Cost) :-
-  ( part(1) -> solve_task_1_3(Task, Cost)
-  ; part(3) -> solve_task_1_3(Task, Cost)
+  ( part(1) -> solve_task_1(Task, Cost)
+  ; part(3) -> solve_task_3(Task, Cost)
   ; part(4) -> solve_task_4(Task, Cost)
   ).
 
-%%%%%%%%%% Part 1 & 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-solve_task_1_3(Task,Cost) :-
+%%%%%%%%%% Part 1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+solve_task_1(Task,Cost) :-
   agent_current_position(oscar,P),
   eval(Task,P,C),
   insert_to_dict(visited{},P,C,VisitedInit),
   % c(total, heuristic, depth, pos)
-  solve_task_bf(Task,[[c(C,C,0,P),P]],VisitedInit,R,Cost,_NewPos),!,  % prune choice point for efficiency
+  solve_task_bf(Task,[[c(C,C,0,P),P]],VisitedInit,R,Cost,_NewPos,false),!,  % prune choice point for efficiency
   reverse(R,[_Init|Path]),
   agent_do_moves(oscar,Path).
-%%%%%%%%%% Part 1 & 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%% Part 3 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+solve_task_3(Task,Cost) :-
+  agent_current_position(oscar,P),
+  eval(Task,P,C),
+  insert_to_dict(visited{},P,C,VisitedInit),
+  % c(total, heuristic, depth, pos)
+  solve_task_bf(Task,[[c(C,C,0,P),P]],VisitedInit,R,Cost,_NewPos,true),!,  % prune choice point for efficiency
+  reverse(R,[_Init|Path]),
+  agent_do_moves(oscar,Path).
 %%%%%%%%%% Part 4 (Optional) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 solve_task_4(Task,Cost):-
   my_agent(Agent),
@@ -39,18 +47,18 @@ solve_task_bt(Task,Current,D,RR,Cost,NewPos) :-
   solve_task_bt(Task,[c(F1,P1),R|RPath],D1,RR,Cost,NewPos).  % backtrack search
 
 %%%%%%%%% Part 1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-solve_task_bf(Task,[Current|_Rest],_Visited,RPath,[cost(Cost),depth(Depth)],NewPos) :-
-  achieved(Task,Current,RPath,Cost,Depth,NewPos).
-solve_task_bf(Task,[Current|Rest],Visited,RR,Cost,NewPos) :-
-  children(Task,Current,Children),
+solve_task_bf(Task,[Current|_Rest],_Visited,RPath,[cost(Cost),depth(Depth)],NewPos,Remember) :-
+  achieved(Task,Current,RPath,Cost,Depth,NewPos,Remember).
+solve_task_bf(Task,[Current|Rest],Visited,RR,Cost,NewPos,Remember) :-
+  children(Task,Current,Children,Remember),
   filter_children(Children,Visited,NewVisited,NewChildren),
   merge(NewChildren,Rest,NewAgenda),
-  solve_task_bf(Task,NewAgenda,NewVisited,RR,Cost,NewPos).  % backtrack search
+  solve_task_bf(Task,NewAgenda,NewVisited,RR,Cost,NewPos,Remember).  % backtrack search
 
-children(Task,[c(_OldCost,_,Depth,P)|RPath],Children) :-
+children(Task,[c(_OldCost,_,Depth,P)|RPath],Children,Remember) :-
   DepthNew is Depth + 1,
   setof0( [c(Cost,H,DepthNew,Next),Next|RPath],
-          (search(P,Next),
+          (search(P,Next,Remember),
            \+ memberchk(Next,RPath),
            eval(Task,Next,H),
            Cost is H + DepthNew ),
@@ -64,8 +72,10 @@ eval(go(P),Pos,Cost) :-
   map_distance(P,Pos,Cost).
 %%%%%%%%%%%%%%%
 
-search(F,N) :-
+search(F,N,false) :-
   map_adjacent(F,N,empty).
+search(F,N,true) :-
+  look_around(F,N,empty).
 
 insert_to_dict(Dict,Point,Value,NewDict) :-
   term_to_atom(Point,Key),
@@ -93,28 +103,38 @@ filter_children([Child|Rest],Children,Dict,NewDict,NewChildren) :-
   filter_children(Rest,Child2,Dict2,NewDict,NewChildren).
 
 
-achieved(go(Exit),Current,RPath,Cost,Depth,NewPos) :-
+achieved(go(Exit),Current,RPath,Cost,Depth,NewPos,_) :-
   Current = [c(Cost,_,Depth,NewPos)|RPath],
   ( Exit=none -> true
   ; otherwise -> RPath = [Exit|_]
   ).
-achieved(find(O),Current,RPath,Cost,Depth,NewPos) :-
+achieved(find(O),Current,RPath,Cost,Depth,NewPos,false) :-
   Current = [c(Cost,_,Depth,NewPos)|RPath],
   ( O=none    -> true
   ; otherwise -> RPath = [Last|_],map_adjacent(Last,_,O)
+  ).
+achieved(find(O),Current,RPath,Cost,Depth,NewPos,true) :-
+  Current = [c(Cost,_,Depth,NewPos)|RPath],
+  ( O=none    -> true
+  ; otherwise -> RPath = [Last|_],look_around(Last,_,O)
   ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-achieved(go(Exit),Current,RPath,Cost,NewPos) :-
+achieved(go(Exit),Current,RPath,Cost,NewPos,_) :-
   Current = [c(Cost,NewPos)|RPath],
   ( Exit=none -> true
   ; otherwise -> RPath = [Exit|_]
   ).
-achieved(find(O),Current,RPath,Cost,NewPos) :-
+achieved(find(O),Current,RPath,Cost,NewPos,false) :-
   Current = [c(Cost,NewPos)|RPath],
   ( O=none    -> true
   ; otherwise -> RPath = [Last|_],map_adjacent(Last,_,O)
+  ).
+achieved(find(O),Current,RPath,Cost,NewPos,true) :-
+  Current = [c(Cost,NewPos)|RPath],
+  ( O=none    -> true
+  ; otherwise -> RPath = [Last|_],look_around(Last,_,O)
   ).
 
 search(F,N,N,1) :-

@@ -8,7 +8,7 @@ init_oscar_memory :-
   retractall(memory(_A,_B)).
 
 remember(o(ID), p(X,Y)) :-
-  memory(o(ID), p(X,Y)),!.
+  memory(o(ID), p(_,_)),!.
 remember(o(ID), p(X,Y)) :-
   assertz(memory(o(ID),p(X,Y))).
 
@@ -47,6 +47,7 @@ find_identity(A) :-
 %nextLink([],_):-fail.
 nextLink([A],A).
 nextLink([ActorA,ActorB|Rest], A) :-
+  solve_task_3(find(o(O),Cost),
   agent_ask_oracle(oscar,o(1),link,L),
   findall(Actor, (member(Actor,[ActorA,ActorB|Rest]),wp(Actor,WT),wt_link(WT,L)), List2 ),
   sort(List2, List3),
@@ -63,3 +64,12 @@ nextLink([ActorA,ActorB|Rest], A) :-
 %% -get_closest
 %% -get_sorted
 %% -look_around
+
+get_closest_oracle_from_mem(CurPos,f(O,P)) :-
+  setof(f(Dist,o(A),Pos),(memory(o(A),Pos),map_distance(CurPos,Pos,Dist)),[f(BDist,BOID,BPos)|_]),
+  O = BOID, P = BPos.
+% check_energy(Agent):- %check energy and if less than ~30 go to nearest charging station and recharge
+%   agent_current_energy(Agent, Energy),
+%   ( Energy =< 30 ->
+%
+%   )
