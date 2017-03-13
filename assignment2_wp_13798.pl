@@ -7,13 +7,13 @@ memory(c(_),p(_,_)).
 init_oscar_memory :-
   retractall(memory(_A,_B)).
 
-remember(o(ID), p(X,Y)) :-
+remember(o(ID), p(_X,_Y)) :-
   memory(o(ID), p(_,_)),!.
 remember(o(ID), p(X,Y)) :-
   assertz(memory(o(ID),p(X,Y))).
 
-remember(c(ID), p(X,Y)) :-
-  memory(c(ID), p(X,Y)),!.
+remember(c(ID), p(_X,_Y)) :-
+  memory(c(ID), p(_,_)),!.
 remember(c(ID), p(X,Y)) :-
   assertz(memory(c(ID),p(X,Y))).
 
@@ -28,7 +28,7 @@ look_around([First|Rest],AdjPos,OID,Solutions,Result) :-
   ( remember(ID,Adj) -> true
   ; otherwise -> true
   ),
-  ( unifiable(Adj,AdjPos,[_|_]),unifiable(ID,OID,[_|_]) -> NewSolutions = [First|Solutions]
+  ( unifiable(Adj,AdjPos,_),unifiable(ID,OID,_) -> NewSolutions = [First|Solutions]
   ; otherwise -> NewSolutions = Solutions
   ),
   look_around(Rest,AdjPos,OID,NewSolutions,Result).
@@ -47,7 +47,7 @@ find_identity(A) :-
 %nextLink([],_):-fail.
 nextLink([A],A).
 nextLink([ActorA,ActorB|Rest], A) :-
-  solve_task_3(find(o(O),Cost),
+  %solve_task_3(find(o(O),Cost),
   agent_ask_oracle(oscar,o(1),link,L),
   findall(Actor, (member(Actor,[ActorA,ActorB|Rest]),wp(Actor,WT),wt_link(WT,L)), List2 ),
   sort(List2, List3),
@@ -66,8 +66,39 @@ nextLink([ActorA,ActorB|Rest], A) :-
 %% -look_around
 
 get_closest_oracle_from_mem(CurPos,f(O,P)) :-
-  setof(f(Dist,o(A),Pos),(memory(o(A),Pos),map_distance(CurPos,Pos,Dist)),[f(BDist,BOID,BPos)|_]),
+  setof(f(Dist,o(A),Pos),(memory(o(A),Pos),map_distance(CurPos,Pos,Dist)),[f(_,BOID,BPos)|_]),
   O = BOID, P = BPos.
+
+get_closest_station_from_mem(CurPos,f(C,P)) :-
+  setof(f(Dist,c(A),Pos),(memory(c(A),Pos),map_distance(CurPos,Pos,Dist)),[f(_,BOID,BPos)|_]),
+  C = BOID, P = BPos.
+
+get_closest_from_mem(CurPos,OID,Pos) :-
+  ( OID = o(A) -> get_closest_oracle_from_mem(CurPos,f(o(A),Pos))
+  ; OID = c(A) -> get_closest_station_from_mem(CurPos,f(c(A),Pos))
+  ).
+
+get_closest_empty_adjacent(CurPos,Pos,New) :-
+  setof(f(D,P),(map_adjacent(Pos,P,empty),map_distance(CurPos,P,D)),[f(_,New)|_]).
+
+get_good_station(CurPos,CurEnergy,c(A),Path,Pos) :-
+  get_closest_from_mem(CurPos,c(C1),P1),
+  get_closest_empty_adjacent(CurPos,P1,NewP1),writeln(NewP1),
+  solve_task_3_path(CurPos,go(NewP1),Cost1,Path1,Pos1),
+  get_closest_from_mem(CurPos,c(C2),P2), %%Anything better found?
+  get_closest_empty_adjacent(CurPos,P2,NewP2),
+  ( NewP1 == NewP2 -> Cost = Cost1,Path = Path1,Pos = Pos1,A = C1
+  ; otherwise -> solve_task_3_path(CurPos,go(NewP2),Cost2,Path2,Pos2),
+                 ( Cost2 @< Cost1 -> Cost = Cost2,Path = Path2,Pos = Pos2,A = C2
+                 ; otherwise      -> Cost = Cost1,Path = Path1,Pos = Pos1,A = C1
+                 )
+  ),
+  Cost = [cost(C),depth(_D)],
+  C < CurEnergy,!.
+get_good_station(CurPos,CurEnergy,c(A),Path,Pos) :-
+  solve_task_3_path(CurPos,find(c(A)),Cost,Path,Pos),
+  Cost = [cost(C),depth(_D)],
+  C < CurEnergy.
 % check_energy(Agent):- %check energy and if less than ~30 go to nearest charging station and recharge
 %   agent_current_energy(Agent, Energy),
 %   ( Energy =< 30 ->

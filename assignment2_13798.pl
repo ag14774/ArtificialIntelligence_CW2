@@ -24,6 +24,13 @@ solve_task_3(Task,Cost) :-
   solve_task_bf(Task,[[c(C,C,0,P),P]],VisitedInit,R,Cost,_NewPos,true),!,  % prune choice point for efficiency
   reverse(R,[_Init|Path]),
   agent_do_moves(oscar,Path).
+
+solve_task_3_path(CurPos,Task,Cost,Path,NewPos) :-
+  eval(Task,CurPos,C),
+  insert_to_dict(visited{},CurPos,C,VisitedInit),
+  % c(total, heuristic, depth, pos)
+  solve_task_bf(Task,[[c(C,C,0,CurPos),CurPos]],VisitedInit,R,Cost,NewPos,true),!,  % prune choice point for efficiency
+  reverse(R,[_Init|Path]).
 %%%%%%%%%% Part 4 (Optional) %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 solve_task_4(Task,Cost):-
   my_agent(Agent),
