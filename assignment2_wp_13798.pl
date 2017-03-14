@@ -99,8 +99,10 @@ get_good_station(CurPos,CurEnergy,c(A),Path,Pos) :-
   solve_task_3_path(CurPos,find(c(A)),Cost,Path,Pos),
   Cost = [cost(C),depth(_D)],
   C < CurEnergy.
-% check_energy(Agent):- %check energy and if less than ~30 go to nearest charging station and recharge
-%   agent_current_energy(Agent, Energy),
-%   ( Energy =< 30 ->
-%
-%   )
+
+check_energy(Agent):- %check energy and if less than ~30 go to nearest charging station and recharge
+  agent_current_energy(Agent, CurEnergy),
+  agent_current_position(Agent,CurPos),
+  ( CurEnergy =< 30 -> get_good_station(CurPos,CurEnergy,c(A),Path,_Pos), agent_do_moves(Agent,Path), agent_topup_energy(Agent,c(A)),!
+  ; otherwise -> true
+  ).
