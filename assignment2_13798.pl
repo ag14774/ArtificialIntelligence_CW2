@@ -120,6 +120,11 @@ achieved(find(O),Current,RPath,Cost,Depth,NewPos,false) :-
   ( O=none    -> true
   ; otherwise -> RPath = [Last|_],map_adjacent(Last,_,O)
   ).
+achieved(find(o(O)),Current,RPath,Cost,Depth,NewPos,true) :-
+  Current = [c(Cost,_,Depth,NewPos)|RPath],
+  RPath = [Last|_],
+  look_around(Last,_,o(O)),
+  agent_check_oracle(oscar,o(O)),!.
 achieved(find(O),Current,RPath,Cost,Depth,NewPos,true) :-
   Current = [c(Cost,_,Depth,NewPos)|RPath],
   ( O=none    -> true
