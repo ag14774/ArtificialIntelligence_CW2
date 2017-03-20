@@ -77,6 +77,13 @@ eval(find(_O),_Pos,Cost) :-
 
 eval(go(P),Pos,Cost) :-
   map_distance(P,Pos,Cost).
+
+eval(goAdj(P),Pos,Cost) :-
+  get_closest_empty_adjacent(Pos,P,New),
+  map_distance(New,Pos,Cost).
+
+get_closest_empty_adjacent(CurPos,Pos,New) :-
+  setof(f(D,P),(map_adjacent(Pos,P,empty),map_distance(CurPos,P,D)),[f(_,New)|_]).
 %%%%%%%%%%%%%%%
 
 search(F,N,false) :-
@@ -115,23 +122,34 @@ achieved(go(Exit),Current,RPath,Cost,Depth,NewPos,_) :-
   ( Exit=none -> true
   ; otherwise -> RPath = [Exit|_]
   ).
+achieved(goAdj(Exit),Current,RPath,Cost,Depth,NewPos,true) :-
+  Current = [c(Cost,_,Depth,NewPos)|RPath],
+  ( Exit=none -> true
+  ; otherwise -> RPath = [Last|_],look_around(Exit,Last,empty)
+  ).
+achieved(goAdj(Exit),Current,RPath,Cost,Depth,NewPos,false) :-
+  Current = [c(Cost,_,Depth,NewPos)|RPath],
+  ( Exit=none -> true
+  ; otherwise -> RPath = [Last|_],map_adjacent(Exit,Last,empty)
+  ).
 achieved(find(O),Current,RPath,Cost,Depth,NewPos,false) :-
   Current = [c(Cost,_,Depth,NewPos)|RPath],
   ( O=none    -> true
   ; otherwise -> RPath = [Last|_],map_adjacent(Last,_,O)
   ).
-achieved(find(o(O)),Current,RPath,Cost,Depth,NewPos,true) :-
+
+achieved(find(o(O)),Current,RPath,Cost,Depth,NewPos,true) :- !,
   Current = [c(Cost,_,Depth,NewPos)|RPath],
   RPath = [Last|_],
   look_around(Last,_,o(O)),
-  agent_check_oracle(oscar,o(O)),!.
+  \+ agent_check_oracle(oscar,o(O)).
 achieved(find(O),Current,RPath,Cost,Depth,NewPos,true) :-
   Current = [c(Cost,_,Depth,NewPos)|RPath],
   ( O=none    -> true
   ; otherwise -> RPath = [Last|_],look_around(Last,_,O)
   ).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%OLD ACHIEVED%%%%%%%%%%%%%%%%%%%%%%%
 
 achieved(go(Exit),Current,RPath,Cost,NewPos,_) :-
   Current = [c(Cost,NewPos)|RPath],
@@ -151,6 +169,7 @@ achieved(find(O),Current,RPath,Cost,NewPos,true) :-
 
 search(F,N,N,1) :-
   map_adjacent(F,N,empty).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 merge([], Agenda, Agenda).
 merge(Children, [], Children).
