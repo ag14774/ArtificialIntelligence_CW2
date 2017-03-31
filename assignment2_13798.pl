@@ -155,3 +155,18 @@ do_moves(Path) :-
   ( part(4) -> my_agent(Agent),query_world(agent_do_moves,[Agent,Path])
   ; otherwise -> agent_do_moves(oscar,Path)
   ).
+
+ask_oracle(OID,A,B) :-
+  ( part(4) -> my_agent(Agent),query_world(agent_ask_oracle,[Agent,OID,A,B])
+  ; otherwise -> agent_ask_oracle(oscar,OID,A,B)
+  ).
+
+current_energy(CurEnergy) :-
+  ( part(4) -> my_agent(Agent),query_world(agent_current_energy,[Agent,CurEnergy])
+  ; otherwise -> agent_current_energy(oscar,CurEnergy)
+  ).
+
+topup_energy(c(C)) :-
+  ( part(4) -> my_agent(Agent),query_world(agent_topup_energy,[Agent,c(C)])
+  ; otherwise -> agent_topup_energy(oscar,c(C))
+  ).
