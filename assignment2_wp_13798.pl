@@ -7,7 +7,7 @@ memory(c(_),p(_,_)).
 discarded(o(_),p(_,_)).
 discarded(c(_),p(_,_)).
 
-init_oscar_memory :-
+init_memory :-
   retractall(memory(_A,_B)),
   retractall(discarded(_C,_D)).
 
@@ -66,7 +66,7 @@ look_around_get_solution([Solution|_Rest],AdjPos,OID) :-
 look_around_get_solution([_Solution|Rest],AdjPos,OID) :-
   look_around_get_solution(Rest,AdjPos,OID).
 
-% Find hidden identity by repeatedly calling agent_ask_oracle(oscar,o(1),link,L)
+% Find hidden identity by repeatedly calling ask_oracle(oscar,o(1),link,L)
 % find_identity(-A)
 find_identity(A) :-
   findall(Ac,actor(Ac),List),
@@ -76,7 +76,7 @@ find_identity(A) :-
 
 nextLink_part2([A],A).
 nextLink_part2([ActorA,ActorB|Rest], A) :-
-  ask_oracle(o(1),link,L),
+  ask_oracle(o(1),link,L,_),
   findall(Actor, (member(Actor,[ActorA,ActorB|Rest]),wp(Actor,WT),wt_link(WT,L)), List2 ),
   sort(List2, List3),
   nextLink_part2(List3, A).
@@ -138,36 +138,59 @@ get_good_object(CurPos,CurEnergy,o(A),Path,Pos,Cost,_ForceBreadthFirst) :-
   Cost = [cost(C),depth(_D)],
   C < CurEnergy.
 
+
+go_to_next_oracle(OID) :-
+  go_to_next_oracle(OID2,Succ),
+  ( Succ == false -> writeln("Trying again.."),go_to_next_oracle(OID)
+  ; otherwise ->    OID = OID2
+  ).
+
+ask_oracle(OID,A,B) :-
+  ask_oracle(OID,A,B2,Succ),
+  ( Succ == false -> write("Oracle trying again"),go_to_next_oracle(OID), ask_oracle(OID,A,B)
+  ; otherwise -> B = B2
+  ).
+
 %%Go to oracle with station within reach.(different name to avoid infinite recursion)
-go_to_next_oracle2(o(O)) :-
+go_to_next_oracle2(o(O), Succ) :-
   current_position(CurPos),
   current_energy(CurEnergy),
   get_good_object(CurPos,CurEnergy,o(O),OPath,OPosAdj,OCost,false),
   OCost = [cost(OC),depth(_OD)],
   PredictedEnergy is CurEnergy - OC - 10,
   get_good_object(OPosAdj,PredictedEnergy,c(_C),_,_,_),
-  do_moves(OPath).
+  do_moves_recharging(OPath, Succ).
 
 %%Go to oracle with station within reach.
-go_to_next_oracle(OID) :-
-  go_to_next_oracle2(OID),!.
+go_to_next_oracle(OID, Succ) :-
+  go_to_next_oracle2(OID2, Succ),!,
+  ( Succ == true -> OID = OID2
+  ; otherwise -> true
+  ).
 %%Topup and try again
-go_to_next_oracle(OID) :-
-  topup(_,_),
-  go_to_next_oracle2(OID),!.
+go_to_next_oracle(OID, Succ) :-
+  topup(Succ1),
+  ( Succ1 == true -> go_to_next_oracle2(OID2, Succ),!,
+                     ( Succ == true -> OID = OID2
+                     ; otherwise -> true
+                     )
+  ; otherwise -> Succ = Succ1
+  ).
 %%Go to closest oracle. Do not check for station
 %%If we are running low on energy and we can't find
 %%an oracle with station nearby and we can't directly go
 %%to the station, then use this last move to ask an oracle
-go_to_next_oracle(o(O)) :-
+go_to_next_oracle(o(O), Succ) :-
   current_position(CurPos),
   current_energy(CurEnergy),
   get_good_object(CurPos,CurEnergy,o(O),OPath,_OPosAdj,_OCost,true), %%last chance - force breadth first search
-  do_moves(OPath).
+  do_moves_recharging(OPath, Succ).
 
-topup(CurPos,CurEnergy):- %check energy and if less than ~30 go to nearest charging station and recharge
+topup(Succ):- %check energy and if less than ~30 go to nearest charging station and recharge
   current_position(CurPos),
   current_energy(CurEnergy),
   get_good_object(CurPos,CurEnergy,c(C),Path,_Pos,_Cost),
-  do_moves(Path),
-  topup_energy(c(C)).
+  do_moves_recharging(Path,Succ1),
+  ( Succ1 == true -> topup_energy(c(C),Succ)
+  ; otherwise -> write("Topup trying again"),Succ=Succ1
+  ).

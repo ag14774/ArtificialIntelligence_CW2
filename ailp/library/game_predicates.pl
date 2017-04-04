@@ -43,6 +43,7 @@ internal_grid_size(20).  % may be changed in testing
 %dynamic_params( [0,[]], [0,[]], [0,[]], 100 ).  % no movement
 dynamic_params([10,[n,e,s,w]], [0,[]], [0,[]], 20).  % 10 things move every 20 seconds in all directions
 %dynamic_params( [40,[n,s]], [2,[w,e]], [2,[n,s,w,e]], 20 ).  % a lot more movement
+%dynamic_params( [40,[n,s]], [2,[w,e]], [2,[n,s,w,e]], 5 ).  % a lot more movement
 
 %%% End of changeable parameters %%%
 

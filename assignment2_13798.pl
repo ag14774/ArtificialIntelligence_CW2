@@ -18,7 +18,7 @@ solve_task_4(Task,Cost) :-
 solve_task(Task,Cost,LookAround) :-
   current_position(P),
   solve_task_path(P,Task,Cost,Path,_NewPos,LookAround),
-  do_moves(Path).
+  do_moves(Path, _).
 
 solve_task_path(CurPos,Task,Cost,Path,NewPos,LookAround) :-
   eval(Task,CurPos,C),
@@ -151,14 +151,32 @@ current_position(P) :-
   ; otherwise -> agent_current_position(oscar,P)
   ).
 
-do_moves(Path) :-
-  ( part(4) -> my_agent(Agent),query_world(agent_do_moves,[Agent,Path])
-  ; otherwise -> agent_do_moves(oscar,Path)
+do_moves(Path, Succ) :-
+  ( part(4) -> my_agent(Agent),
+               ( query_world(agent_do_moves,[Agent,Path]) -> Succ=true
+               ; otherwise -> Succ=false
+               )
+  ; otherwise -> agent_do_moves(oscar,Path), Succ=true
   ).
 
-ask_oracle(OID,A,B) :-
-  ( part(4) -> my_agent(Agent),query_world(agent_ask_oracle,[Agent,OID,A,B])
-  ; otherwise -> agent_ask_oracle(oscar,OID,A,B)
+%failure driven loop
+do_moves_recharging(Path, Succ) :-
+  member(Point,Path),
+  do_moves([Point],Succ1),
+  ( Succ1 == true -> ( map_adjacent(Point, _, c(ID)) -> topup_energy(c(ID),_)
+                     ; otherwise -> true
+                     ),
+                     fail
+  ; otherwise -> Succ = Succ1,!
+  ).
+do_moves_recharging(_, Succ) :- Succ = true.
+
+ask_oracle(OID,A,B,Succ) :-
+  ( part(4) -> my_agent(Agent),
+               ( query_world(agent_ask_oracle,[Agent,OID,A,B]) -> Succ=true
+               ; otherwise -> Succ=false
+               )
+  ; otherwise -> agent_ask_oracle(oscar,OID,A,B), Succ=true
   ).
 
 current_energy(CurEnergy) :-
@@ -166,7 +184,10 @@ current_energy(CurEnergy) :-
   ; otherwise -> agent_current_energy(oscar,CurEnergy)
   ).
 
-topup_energy(c(C)) :-
-  ( part(4) -> my_agent(Agent),query_world(agent_topup_energy,[Agent,c(C)])
-  ; otherwise -> agent_topup_energy(oscar,c(C))
+topup_energy(c(C),Succ) :-
+  ( part(4) -> my_agent(Agent),
+               ( query_world(agent_topup_energy,[Agent,c(C)]) -> Succ=true
+               ; otherwise -> Succ=false
+               )
+  ; otherwise -> agent_topup_energy(oscar,c(C)), Succ=true
   ).
